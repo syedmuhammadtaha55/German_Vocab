@@ -10,6 +10,7 @@
   db.settings ||= { newPerDay: 10, front: 'mixed', rateScale: 1, requireArticle: true };
   db.words ||= {};      // id -> { due, ivl, ease, reps, lapses, first, skills: {article:[ok,total], listen:[..], speak:[..], write:[..], use:[..]} }
   db.days ||= {};       // 'YYYY-MM-DD' -> { reviews, newCount, correct }
+  db.stats ||= {};      // drill stats not tied to one word, e.g. talk: [ok, total], a2: [ok, total]
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (_) {}
@@ -107,15 +108,23 @@
     save();
   }
 
+  function stat(name, ok) {
+    const k = (db.stats[name] ||= [0, 0]);
+    k[1]++; if (ok) k[0]++;
+    const d = dayRec();
+    d.drills = (d.drills || 0) + 1;
+    save();
+  }
+
   function exportJSON() { return JSON.stringify(db); }
   function importJSON(text) {
     const d = JSON.parse(text);
     if (!d || typeof d !== 'object' || !d.words) throw new Error('This does not look like a progress backup.');
-    db = d; db.settings ||= {}; db.days ||= {}; save();
+    db = d; db.settings ||= {}; db.days ||= {}; db.stats ||= {}; save();
   }
 
   window.Settings = Settings;
-  window.Progress = { grade, skill, status, state, dueIds, newToday, streak, weakness, reset, markKnown, exportJSON, importJSON, get days() { return db.days; } };
+  window.Progress = { grade, skill, stat, get stats() { return db.stats; }, status, state, dueIds, newToday, streak, weakness, reset, markKnown, exportJSON, importJSON, get days() { return db.days; } };
 
   // ---------- Language helpers ----------
   const norm = s => s.toLowerCase()

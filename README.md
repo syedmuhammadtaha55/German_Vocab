@@ -21,6 +21,23 @@ No accounts, no API keys, no cost. It runs in the browser and works offline once
 | | • **Say it**: speak the word; speech recognition checks you. *Shadow* mode scores full sentences word by word. |
 | | • **Fill the gap**: complete the example sentence |
 | | • **Build the sentence**: put the words in order (German verb-second word order) |
+| **Drills: Speak & write** | Free answers, spoken or typed, reviewed by the app: |
+| | • **Answer questions**: hear a German question (text hidden by default) and answer it |
+| | • **Ask questions**: turn an English situation into a German question; your partner answers |
+| | • **Make sentences**: use 1–3 of your words in your own sentence |
+| | • **Tell a story**: 3+ sentences using 5–6 words from a scene or from your list |
+| **Drills: A2 level** | **Articles in A2 sentences**: 65 sentences covering nominative, accusative, dative and genitive (der/den/dem/des, ein/einen/einem, mein/meinen…). *Read* or *Listen* mode, a case explanation after each answer, and a "Say it" check. |
+
+### How free answers are reviewed
+
+1. **Offline checks (always on):** each noun from the word list is checked against its article
+   ("die Hund" → "den Hund", with the likely case), plus verb forms for 30+ common verbs ("ich bist" → "bin"),
+   capital letters on nouns, punctuation, question word order, staying on topic, and whether you used the target words.
+2. **LanguageTool (free, no key, on by default):** a full German grammar and spelling check from languagetool.org.
+   Limit: about 20 checks per minute.
+3. **Google Gemini tutor (optional, free key):** paste a key from <https://aistudio.google.com/apikey> in
+   *Today → Settings*. You then get corrections with explanations, a reply as a conversation partner, and a
+   follow-up question so the conversation continues.
 
 Colours follow the classroom convention: **der = blue, die = red, das = green**.
 
@@ -30,6 +47,8 @@ Both are the browser's built-in **Web Speech API**, so there are no keys and no 
 
 * **Text-to-speech** (`speechSynthesis`) reads every word and sentence in German.
   In Chrome this is Google's own "Google Deutsch" voice. You can choose the voice and speed in *Today → Settings*.
+* **LanguageTool** (`api.languagetool.org`): free grammar checking for the Speak & write drills.
+* **Google Gemini** (optional, your own free key): tutor feedback.
 * **Speech recognition** (`SpeechRecognition`) listens to you in German (`de-DE`).
   In Chrome it runs on Google's speech service. It works in **Chrome, Edge and Safari** (desktop and mobile).
   Firefox has no speech recognition, so speaking drills fall back to self-grading there.
@@ -67,6 +86,10 @@ js/data.js            the 252 words: article, plural, English, example sentence,
 js/store.js           settings, spaced-repetition scheduler, pronunciation and gender rules
 js/speech.js          Web Speech API wrapper (TTS + recognition)
 js/app.js             views and drills
+js/talk.js            conversation drills and the A2 article drill
+js/checker.js         answer review: offline rules + LanguageTool + optional Gemini
+js/talk-data.js       questions, question prompts and story scenes
+js/a2.js              A2 article-in-context sentences
 sw.js, manifest.webmanifest, icons/   offline support and install-to-home-screen
 ```
 
@@ -76,5 +99,7 @@ sw.js, manifest.webmanifest, icons/   offline support and install-to-home-screen
 2. **der, die, das**: one round.
 3. **Hear it**: one round in *Sentences* mode. Switch to *Fast speech* once it's easy.
 4. **Say it**: one round of *Shadow sentences*.
+5. **Answer questions**: 5 questions, answered out loud. Every few days, **Tell a story**.
+6. Once the A1 articles are easy, add a round of **Articles in A2 sentences**.
 
 At 10 new words a day you meet all 252 words in under 4 weeks. Reviews keep them in long-term memory.

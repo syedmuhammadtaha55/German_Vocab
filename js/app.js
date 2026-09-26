@@ -177,7 +177,8 @@
     );
 
     const st = skillTotals();
-    const skills = [['article', 'Articles', 'der · die · das'], ['listen', 'Listening', 'recognise by ear'], ['speak', 'Speaking', 'say it out loud'], ['write', 'Spelling', 'write what you hear'], ['use', 'Usage', 'words in sentences']];
+    for (const k of ['talk', 'a2']) st[k] = Progress.stats[k] || [0, 0];
+    const skills = [['article', 'Articles', 'der · die · das'], ['listen', 'Listening', 'recognise by ear'], ['speak', 'Speaking', 'say it out loud'], ['write', 'Spelling', 'write what you hear'], ['use', 'Usage', 'words in sentences'], ['talk', 'Conversation', 'answers without mistakes'], ['a2', 'A2 articles', 'cases in sentences']];
     view.append(h('section', { class: 'panel' },
       h('div', { class: 'row between' }, h('h2', {}, 'Skills'), h('span', { class: 'muted small' }, 'accuracy in drills')),
       h('div', { class: 'grid-3' }, skills.map(([k, name, sub]) => {
@@ -233,6 +234,14 @@
         h('div', { class: 'field' }, h('label', { for: 'set-front' }, 'Review cards show'),
           h('select', { id: 'set-front', onchange: e => Settings.set('front', e.target.value) },
             [['mixed', 'Mix of English and audio'], ['en', 'English (you produce German)'], ['audio', 'Audio only (you recognise German)']].map(([v, l]) => h('option', { value: v, selected: Settings.get('front') === v }, l))))),
+      h('div', { class: 'grid-2' },
+        h('div', { class: 'field' }, h('label', { for: 'set-gemini' }, 'Google Gemini API key (optional)'),
+          h('input', { id: 'set-gemini', type: 'password', autocomplete: 'off', placeholder: 'Paste your free key', value: Settings.get('geminiKey') || '', onchange: e => { Settings.set('geminiKey', e.target.value.trim()); toast(e.target.value.trim() ? 'Tutor feedback turned on' : 'Tutor feedback turned off'); } }),
+          h('span', { class: 'muted small' }, 'Adds tutor feedback and replies in the conversation drills. Get a free key at aistudio.google.com/apikey. It is stored only in this browser.')),
+        h('div', { class: 'field' }, h('label', { for: 'set-model' }, 'Gemini model'),
+          h('input', { id: 'set-model', type: 'text', autocomplete: 'off', value: Settings.get('geminiModel') || 'gemini-flash-latest', onchange: e => Settings.set('geminiModel', e.target.value.trim() || 'gemini-flash-latest') }),
+          h('span', { class: 'muted small' }, 'Leave as is unless Google renames its models.'))),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'set-lt', checked: Settings.get('languageTool') !== false, onchange: e => Settings.set('languageTool', e.target.checked) }), 'Check grammar online with LanguageTool (free; your text is sent to languagetool.org)'),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'set-art', checked: Settings.get('requireArticle') !== false, onchange: e => Settings.set('requireArticle', e.target.checked) }), 'Require the article (der/die/das) when writing or speaking nouns'),
       h('div', { class: 'notice' },
         Speech.canListen ? 'Speech recognition is available in this browser. Allow microphone access when asked.'
@@ -433,6 +442,11 @@
     { key: 'speak', title: 'Say it', desc: 'Speak the German word; speech recognition checks you. Or shadow full sentences.', skill: 'speak' },
     { key: 'gap', title: 'Fill the gap', desc: 'Complete the example sentence with the right word.', skill: 'use' },
     { key: 'build', title: 'Build the sentence', desc: 'Put the words in the right order. Learn German word order.', skill: 'use' },
+    { key: 'answer', group: 'talk', title: 'Answer questions', desc: 'Hear a question in German and answer it by speaking or typing. Your answer is checked.' },
+    { key: 'ask', group: 'talk', title: 'Ask questions', desc: 'Turn a situation into a German question. Get word order right and hear the reply.' },
+    { key: 'sentence', group: 'talk', title: 'Make sentences', desc: 'Use two of your words in your own sentence. Articles and grammar are checked.' },
+    { key: 'story', group: 'talk', title: 'Tell a story', desc: 'Use 5–6 words in a short story of three or more sentences, spoken or written.' },
+    { key: 'a2', group: 'a2', title: 'Articles in A2 sentences', desc: 'der/den/dem/des, ein/einen/einem… Choose the article the case needs. Read or listen.' },
   ];
 
   function poolFor(choice) {
@@ -456,14 +470,23 @@
     view.append(
       h('div', { class: 'stack', style: { gap: '6px' } }, h('h1', {}, 'Drills'), h('p', { class: 'muted' }, 'Ten quick questions per round. Mistakes come back in your reviews.')),
       h('div', { class: 'field', style: { maxWidth: '420px' } }, h('label', { for: 'drill-pool' }, 'Practise with'), sel),
-      h('div', { class: 'grid-2' }, DRILLS.map(d => h('button', { class: 'drill-card', onclick: () => runDrill(d.key, pool) },
-        h('span', { class: 'glyph' }, d.title),
-        h('span', { class: 'muted' }, d.desc)))));
+      ...[['words', 'Words'], ['talk', 'Speak & write: checked by the app'], ['a2', 'A2 level']].map(([grp, name]) => h('section', { class: 'stack' },
+        h('h2', {}, name),
+        h('div', { class: 'grid-2' }, DRILLS.filter(d => (d.group || 'words') === grp).map(d => h('button', { class: 'drill-card', onclick: () => runDrill(d.key, pool) },
+          h('span', { class: 'glyph' }, d.title),
+          h('span', { class: 'muted' }, d.desc)))))));
     if (arg.start) runDrill(arg.start, pool);
   }
 
   function runDrill(key, poolChoice) {
     const d = DRILLS.find(x => x.key === key);
+    if (window.TalkDrills?.[key]) {
+      if (cleanup) { cleanup(); cleanup = null; }
+      Speech.canSpeak && speechSynthesis.cancel();
+      view.replaceChildren();
+      window.scrollTo(0, 0);
+      return TalkDrills[key](poolChoice, poolFor(poolChoice));
+    }
     let pool = poolFor(poolChoice);
     if (key === 'article') pool = pool.filter(w => w.art);
     if (key === 'gap') pool = pool.filter(w => gapFor(w));
@@ -778,6 +801,8 @@
     return (gapCache[w.id] = res);
   }
   const gapLabel = (x, mode) => mode === 'full' ? x.de : mode === 'bare' ? (x.noun || x.de) : x.de;
+
+  window.UI = { h, icon, speakBtn, wordEl, toast, shuffle, sample, go, gclass, byId, view, listItem, renderStreak, judgeSpoken, runDrill };
 
   // ---------- boot ----------
   const start = (location.hash || '').slice(1);

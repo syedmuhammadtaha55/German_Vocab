@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wortschatz A1</title>
+<meta name="description" content="Learn the 252 core A1 German words: articles, pronunciation, listening, speaking and sentences.">
+<meta name="theme-color" content="#2457B3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand" aria-label="Wortschatz A1">
+    <span class="flag" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="brand-name">Wortschatz <b>A1</b></span>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-tab="home" id="tab-home">Today</button>
+    <button data-tab="words" id="tab-words">Words</button>
+    <button data-tab="review" id="tab-review">Review</button>
+    <button data-tab="drills" id="tab-drills">Drills</button>
+  </nav>
+  <div class="streak" id="streak" title="Days in a row"></div>
+</header>
+
+<main id="view" class="view" tabindex="-1"></main>
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

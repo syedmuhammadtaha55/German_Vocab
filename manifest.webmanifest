@@ -1,0 +1,15 @@
+{
+  "name": "Wortschatz A1: German vocabulary",
+  "short_name": "Wortschatz A1",
+  "description": "Learn the 252 core A1 German words with articles, pronunciation, listening and speaking practice.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F1F3F7",
+  "theme_color": "#2457B3",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

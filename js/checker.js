@@ -10,10 +10,15 @@
   // ---------- word list lookups ----------
   const nouns = {};    // lowercase form -> { w, plural }
   for (const w of V) {
-    if (!w.art || w.noun.includes(' ')) continue;
-    nouns[w.noun.toLowerCase()] = { w, plural: w.pl === w.noun };
-    if (w.pl && w.pl !== w.noun) nouns[w.pl.toLowerCase()] ||= { w, plural: true, onlyPlural: true };
+    if (!w.art || w.noun.includes(' ') || w.adjNoun) continue;
+    if (w.plOnly) { nouns[w.noun.toLowerCase()] = { w, plural: true, onlyPlural: true }; continue; }
+    nouns[w.noun.toLowerCase()] ||= { w, plural: w.pl === w.noun };
+    // Weak masculine nouns (der Student → den Studenten) use the plural form in the singular too.
+    const weak = w.art === 'der' && w.pl && (w.pl === w.noun + 'en' || w.pl === w.noun + 'n');
+    if (w.pl && w.pl !== w.noun) nouns[w.pl.toLowerCase()] ||= { w, plural: true, onlyPlural: !weak, weak };
   }
+  // Lowercase words that are also verbs, adverbs etc. ("essen", "morgen", "leben") are not capital-letter mistakes.
+  const notOnlyNoun = new Set(V.filter(w => w.type !== 'noun').map(w => w.de.toLowerCase()));
   const G = { der: 'm', die: 'f', das: 'n' };
   const DEF = { m: ['der', 'den', 'dem', 'des'], f: ['die', 'die', 'der', 'der'], n: ['das', 'das', 'dem', 'des'], pl: ['die', 'die', 'den', 'der'] };
   const END = { m: ['', 'en', 'em', 'es'], f: ['e', 'e', 'er', 'er'], n: ['', '', 'em', 'es'], pl: ['e', 'e', 'en', 'er'] };
@@ -73,6 +78,7 @@
       if (!isDet(det.l)) return;
       const g = G[entry.w.art];
       const genders = entry.onlyPlural ? ['pl'] : entry.plural ? [g, 'pl'] : [g];
+      if (entry.weak) genders.push('m');
       if (genders.some(x => detFits(det.l, x))) return;
       const prep = toks[toks.indexOf(det) - 1]?.l;
       // After a verb other than "sein" the noun is most likely the object (accusative).
@@ -88,7 +94,7 @@
     // Nouns must be capitalised (typed text only)
     if (!spoken) toks.forEach(tok => {
       const entry = nouns[tok.l];
-      if (entry && tok.t[0] === tok.l[0] && !['alter'].includes(tok.l)) {
+      if (entry && tok.t[0] === tok.l[0] && !notOnlyNoun.has(tok.l) && !['alter'].includes(tok.l)) {
         const cap = tok.t[0].toUpperCase() + tok.t.slice(1);
         add('error', `Nouns start with a capital letter: "${cap}".`, { kind: 'capital', at: tok.i, len: tok.t.length, fix: cap });
       }
@@ -179,10 +185,38 @@
       const forms = [w.noun, w.pl].filter(Boolean).map(Lang.fold);
       return toks.some(t => forms.some(f => Lang.fold(t.t) === f || Lang.fold(t.t).endsWith(f) || Lang.fold(t.t) === f + 'n' || Lang.fold(t.t) === f + 's' || Lang.fold(t.t) === f + 'es'));
     }
+    if (w.type === 'verb') return usesVerb(toks, w.de);
     if (w.de.includes(' ')) return (` ${low} `).includes(` ${Lang.fold(w.de)} `);
     const stem = Lang.fold(w.de).replace(/e$/, '');
     return toks.some(t => { const f = Lang.fold(t.t); return f === Lang.fold(w.de) || (f.startsWith(stem) && f.length <= stem.length + 3); });
   }
+  // Verbs change form: gehen → geht, abfahren → "fahren … ab", essen → isst.
+  const PREFIXES = ['zurück', 'kennen', 'fern', 'mit', 'weg', 'ein', 'aus', 'auf', 'vor', 'ab', 'an', 'um', 'zu'];
+  const plain = s => s.toLowerCase().replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss');
+  function usesVerb(toks, de) {
+    const parts = de.replace(/^sich\s+/, '').split(' ');
+    const inf = parts.pop().toLowerCase();
+    const extra = parts.map(p => p.toLowerCase());          // "Rad fahren", "an sein"
+    const words = toks.map(t => t.l);
+    if (!extra.every(p => words.includes(p))) return false;
+    const matches = (verb, prefixAttached) => {
+      const stem = plain(verb).replace(/(en|n)$/, '');
+      return words.some(t => {
+        if (formIndex[t]?.some(c => c.row[0] === verb)) return true;
+        const pt = plain(t);
+        return (prefixAttached ? pt.startsWith(stem) : pt.startsWith(stem) || pt.startsWith('ge' + stem)) && pt.length <= stem.length + 4;
+      });
+    };
+    if (matches(inf, true)) return true;
+    const pre = PREFIXES.find(p => inf.startsWith(p) && inf.length > p.length + 2);
+    if (pre) {
+      const base = inf.slice(pre.length);
+      if (words.some(t => plain(t).startsWith(pre + 'ge' + plain(base).replace(/(en|n)$/, '')))) return true; // abgefahren
+      return words.includes(pre) && matches(base, false);
+    }
+    return false;
+  }
+
   function countSentences(text, spoken) {
     const parts = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.split(/\s+/).length >= 2);
     if (spoken && parts.length <= 1) return Math.max(1, Math.round(text.split(/\s+/).length / 6));

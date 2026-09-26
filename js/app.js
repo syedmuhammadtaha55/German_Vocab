@@ -30,7 +30,9 @@
   const icon = name => h('span', { html: ICON[name], style: { display: 'inline-flex' } });
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const sample = (arr, n, not = []) => shuffle(arr.filter(x => !not.includes(x))).slice(0, n);
-  const gclass = w => (w.art ? 'g-' + w.art : '');
+  const gclass = w => (w.art && !w.plOnly ? 'g-' + w.art : '');
+  const LIST_NAMES = { sg: 'StudyGerman A1', goethe: 'Goethe A1' };
+  const inList = (w, l) => (w.lists || ['sg']).includes(l);
 
   function toast(msg) {
     const t = document.getElementById('toast');
@@ -84,10 +86,11 @@
   function wordCard(w, { compact = false } = {}) {
     const tips = Lang.pronunciationTips(w.de);
     const rule = w.art ? Lang.articleRule(w) : '';
-    const typeLabel = { noun: 'noun', adj: 'adjective', adv: 'adverb / time word' }[w.type];
+    const typeLabel = { noun: w.plOnly ? 'noun, plural only' : 'noun', adj: 'adjective', adv: 'adverb / time word', verb: 'verb', word: 'small word', phrase: 'phrase' }[w.type];
+    const lists = (w.lists || ['sg']).map(l => LIST_NAMES[l]).join(' + ');
     return h('article', { class: compact ? `card flat ${gclass(w)}` : `card ${w.art ? 'gendered ' + gclass(w) : ''}` },
       h('div', { class: 'row between' },
-        h('span', { class: 'eyebrow' }, `#${w.id} · ${typeLabel}`),
+        h('span', { class: 'eyebrow' }, `#${w.id} · ${typeLabel} · ${lists}`),
         statusPill(w.id)),
       h('div', { class: 'stack', style: { gap: '6px' } },
         h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } },
@@ -95,19 +98,26 @@
           h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, speakBtn(w.de), speakBtn(w.de, { slow: true }))),
         h('p', { style: { fontSize: '1.15rem' } }, w.en),
         w.pl ? h('p', { class: 'plural' }, 'Plural: ', h('b', {}, 'die'), ' ' + w.pl, ' ', speakBtn('die ' + w.pl, { label: 'Play plural' })) : null,
-        w.art && !w.pl ? h('p', { class: 'plural small' }, 'Usually no plural.') : null),
+        w.plOnly ? h('p', { class: 'plural small' }, 'Only used in the plural, so the article is always die.') :
+          w.art && !w.pl ? h('p', { class: 'plural small' }, 'Usually no plural.') : null,
+        w.adjNoun ? h('p', { class: 'plural small' }, `Declined like an adjective: der ${w.noun} but ein ${w.noun}r (ein Bekannter, eine Bekannte).`) : null),
       rule ? h('p', { class: 'rule' }, h('b', {}, w.art + ' · '), rule) : null,
       h('div', { class: 'ex' },
         h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } },
           h('p', { class: 'de', style: { flex: '1' } }, w.ex),
           speakBtn(w.ex), speakBtn(w.ex, { slow: true })),
         h('p', { class: 'en' }, w.exEn)),
+      (w.more || []).map(m => h('div', { class: 'ex' },
+        h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-start' } },
+          h('p', { class: 'de', style: { flex: '1' } }, m.de),
+          speakBtn(m.de), compact ? null : speakBtn(m.de, { slow: true })),
+        h('p', { class: 'en' }, m.en))),
       compact ? null : h('details', { class: 'more', open: true },
         h('summary', {}, 'How to pronounce it'),
         tips.length ? h('ul', { class: 'tips' }, tips.map(t => h('li', {}, h('b', {}, t.label), h('span', {}, t.text))))
           : h('p', { class: 'muted small' }, 'Spoken as written. Stress the first syllable.'),
         h('p', { class: 'muted small', style: { marginTop: '8px' } }, 'Stress usually falls on the first syllable. Listen at slow speed, then repeat out loud.')),
-      compact || !w.art ? null : h('details', { class: 'more' },
+      compact || !w.art || w.plOnly || w.adjNoun ? null : h('details', { class: 'more' },
         h('summary', {}, 'Use it in a sentence (cases)'),
         h('div', { style: { overflowX: 'auto' } },
           h('table', { class: 'case-table' },
@@ -146,31 +156,43 @@
   }
   function newQueue() {
     const left = Math.max(0, (Settings.get('newPerDay') || 10) - Progress.newToday());
-    return V.filter(w => !Progress.state(w.id)).slice(0, left).map(w => w.id);
+    const from = Settings.get('newFrom') || 'mixed';
+    const fresh = l => V.filter(w => !Progress.state(w.id) && inList(w, l));
+    let ids;
+    if (from === 'mixed') {
+      // Alternate between the two lists; words on both lists count for either.
+      const a = fresh('sg'), b = fresh('goethe').filter(w => !inList(w, 'sg'));
+      ids = [];
+      for (let i = 0; ids.length < left && (i < a.length || i < b.length); i++) {
+        if (a[i]) ids.push(a[i].id);
+        if (b[i] && ids.length < left) ids.push(b[i].id);
+      }
+    } else ids = fresh(from).slice(0, left).map(w => w.id);
+    return ids;
   }
 
   function Home() {
     const c = counts();
     const due = Progress.dueIds().length;
     const fresh = newQueue().length;
-    const seen = 252 - c.new;
+    const seen = V.length - c.new;
     const segs = [['mastered', 'var(--das)'], ['known', 'var(--der)'], ['learning', 'var(--warn)']];
 
     view.append(
       h('section', { class: 'panel hero' },
         h('div', { class: 'stack', style: { gap: '4px' } },
           h('span', { class: 'eyebrow' }, new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })),
-          h('h1', {}, due + fresh ? 'Your session is ready' : seen === 252 ? 'All 252 words started. Keep them fresh.' : 'All done for today')),
+          h('h1', {}, due + fresh ? 'Your session is ready' : seen === V.length ? `All ${V.length} words started. Keep them fresh.` : 'All done for today')),
         h('div', { class: 'hero-stats' },
           h('div', { class: 'stat' }, h('b', {}, due), h('span', {}, 'reviews due')),
           h('div', { class: 'stat' }, h('b', {}, fresh), h('span', {}, 'new words today')),
-          h('div', { class: 'stat' }, h('b', {}, `${seen}/252`), h('span', {}, 'words started'))),
+          h('div', { class: 'stat' }, h('b', {}, `${seen}/${V.length}`), h('span', {}, 'words started'))),
         h('div', { class: 'row' },
           h('button', { class: 'btn gold big', onclick: () => go('review'), disabled: !(due + fresh) }, due + fresh ? 'Start session' : 'Nothing due'),
           h('button', { class: 'btn big', onclick: () => go('drills') }, 'Practise with drills')),
         h('div', { class: 'stack', style: { gap: '8px' } },
           h('div', { class: 'bar', role: 'img', 'aria-label': `${c.mastered} mastered, ${c.known} known, ${c.learning} learning, ${c.new} new` },
-            segs.map(([k, col]) => h('i', { style: { width: (c[k] / 252 * 100) + '%', background: col } }))),
+            segs.map(([k, col]) => h('i', { style: { width: (c[k] / V.length * 100) + '%', background: col } }))),
           h('div', { class: 'legend num' },
             segs.map(([k, col]) => h('span', { style: { '--c': col } }, `${c[k]} ${k}`)),
             h('span', { style: { '--c': 'var(--surface-2)' } }, `${c.new} new`)))),
@@ -231,6 +253,9 @@
             [['0.85', 'Slower'], ['1', 'Normal'], ['1.15', 'Faster']].map(([v, l]) => h('option', { value: v, selected: String(Settings.get('rateScale') || 1) === v }, l)))),
         h('div', { class: 'field' }, h('label', { for: 'set-new' }, 'New words per day'),
           h('input', { id: 'set-new', type: 'number', min: 1, max: 50, value: Settings.get('newPerDay') || 10, onchange: e => Settings.set('newPerDay', Math.max(1, Math.min(50, +e.target.value || 10))) })),
+        h('div', { class: 'field' }, h('label', { for: 'set-from' }, 'New words come from'),
+          h('select', { id: 'set-from', onchange: e => Settings.set('newFrom', e.target.value) },
+            [['mixed', 'Both lists, alternating'], ['sg', 'StudyGerman A1 list first'], ['goethe', 'Goethe A1 list (exam words) first']].map(([v, l]) => h('option', { value: v, selected: (Settings.get('newFrom') || 'mixed') === v }, l)))),
         h('div', { class: 'field' }, h('label', { for: 'set-front' }, 'Review cards show'),
           h('select', { id: 'set-front', onchange: e => Settings.set('front', e.target.value) },
             [['mixed', 'Mix of English and audio'], ['en', 'English (you produce German)'], ['audio', 'Audio only (you recognise German)']].map(([v, l]) => h('option', { value: v, selected: Settings.get('front') === v }, l))))),
@@ -265,33 +290,36 @@
   }
 
   function Words(arg = {}) {
-    let cat = arg.cat || 'All', q = '', art = 'all';
+    let cat = arg.cat || 'All', q = '', art = 'all', src = 'all';
     const list = h('div', { class: 'wlist' });
     const count = h('span', { class: 'muted small num' });
     const render = () => {
       const qq = Lang.fold(q);
-      const items = V.filter(w => (cat === 'All' || w.cat === cat) && (art === 'all' || w.art === art) &&
+      const typeOk = w => art === 'all' || (['der', 'die', 'das'].includes(art) ? w.art === art && !w.plOnly : w.type === art);
+      const items = V.filter(w => (cat === 'All' || w.cat === cat) && typeOk(w) && (src === 'all' || inList(w, src)) &&
         (!qq || Lang.fold(w.de).includes(qq) || w.en.toLowerCase().includes(q.toLowerCase())));
       count.textContent = `${items.length} word${items.length === 1 ? '' : 's'}`;
       list.replaceChildren(...(items.length ? items.map(listItem) : [h('p', { class: 'muted', style: { padding: '16px' } }, 'No words match. Try English or German, e.g. "house" or "Haus".')]));
     };
     const chip = (label, active, onclick) => h('button', { class: 'chip', 'aria-pressed': String(active), onclick }, label);
     const catChips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Topic' });
-    const artChips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Article' });
+    const artChips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Word type' });
+    const srcChips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Word list' });
     const renderChips = () => {
       catChips.replaceChildren(...['All', ...CATEGORIES].map(c => chip(c, c === cat, () => { cat = c; renderChips(); render(); })));
-      artChips.replaceChildren(...[['all', 'All types'], ['der', 'der'], ['die', 'die'], ['das', 'das']].map(([v, l]) => {
+      srcChips.replaceChildren(...[['all', 'Both lists'], ['sg', 'StudyGerman A1'], ['goethe', 'Goethe A1']].map(([v, l]) => chip(l, v === src, () => { src = v; renderChips(); render(); })));
+      artChips.replaceChildren(...[['all', 'All types'], ['der', 'der'], ['die', 'die'], ['das', 'das'], ['verb', 'Verbs'], ['adj', 'Adjectives'], ['phrase', 'Phrases']].map(([v, l]) => {
         const b = chip(l, v === art, () => { art = v; renderChips(); render(); });
-        if (v !== 'all') b.classList.add('g-' + v), b.style.color = 'var(--g)';
+        if (['der', 'die', 'das'].includes(v)) b.classList.add('g-' + v), b.style.color = 'var(--g)';
         return b;
       }));
     };
     renderChips();
     view.append(
-      h('div', { class: 'row between' }, h('h1', {}, 'All 252 words'), count),
+      h('div', { class: 'row between' }, h('h1', {}, `All ${V.length} words`), count),
       h('div', { class: 'filters' },
         h('input', { class: 'search', id: 'word-search', type: 'search', placeholder: 'Search German or English…', 'aria-label': 'Search words', oninput: e => { q = e.target.value.trim(); render(); } }),
-        catChips, artChips),
+        srcChips, catChips, artChips),
       list);
     render();
   }
@@ -454,6 +482,7 @@
     if (choice === 'weak') ids = V.filter(w => Progress.weakness(w.id) > 0).map(w => w.id);
     else if (choice === 'learning') ids = V.filter(w => Progress.state(w.id)).map(w => w.id);
     else if (choice === 'all') ids = V.map(w => w.id);
+    else if (choice.startsWith('list:')) ids = V.filter(w => inList(w, choice.slice(5))).map(w => w.id);
     else ids = V.filter(w => w.cat === choice).map(w => w.id);
     return ids.map(id => byId[id]);
   }
@@ -465,7 +494,9 @@
     const sel = h('select', { id: 'drill-pool', onchange: e => { pool = e.target.value; } },
       learningCount ? h('option', { value: 'learning', selected: pool === 'learning' }, `Words I have started (${learningCount})`) : null,
       weakCount ? h('option', { value: 'weak', selected: pool === 'weak' }, `Words to work on (${weakCount})`) : null,
-      h('option', { value: 'all', selected: pool === 'all' }, 'All 252 words'),
+      h('option', { value: 'all', selected: pool === 'all' }, `All ${V.length} words`),
+      h('option', { value: 'list:sg', selected: pool === 'list:sg' }, `StudyGerman A1 list (${V.filter(w => inList(w, 'sg')).length})`),
+      h('option', { value: 'list:goethe', selected: pool === 'list:goethe' }, `Goethe A1 list (${V.filter(w => inList(w, 'goethe')).length})`),
       CATEGORIES.map(c => h('option', { value: c, selected: pool === c }, `Topic: ${c}`)));
     view.append(
       h('div', { class: 'stack', style: { gap: '6px' } }, h('h1', {}, 'Drills'), h('p', { class: 'muted' }, 'Ten quick questions per round. Mistakes come back in your reviews.')),
@@ -488,10 +519,10 @@
       return TalkDrills[key](poolChoice, poolFor(poolChoice));
     }
     let pool = poolFor(poolChoice);
-    if (key === 'article') pool = pool.filter(w => w.art);
+    if (key === 'article') pool = pool.filter(w => w.art && !w.plOnly);
     if (key === 'gap') pool = pool.filter(w => gapFor(w));
     if (pool.length < 4) {
-      const extra = (key === 'article' ? V.filter(w => w.art) : V).filter(w => !pool.includes(w) && (key !== 'gap' || gapFor(w)));
+      const extra = (key === 'article' ? V.filter(w => w.art && !w.plOnly) : V).filter(w => !pool.includes(w) && (key !== 'gap' || gapFor(w)));
       pool = pool.concat(extra.slice(0, 10 - pool.length));
       toast('Added some words so there are enough for a round');
     }

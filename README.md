@@ -1,7 +1,7 @@
 # Wortschatz A1
 
-A free web app for learning the 252 core **A1 German words**
-(from the StudyGerman.io A1 list). For every word you learn the
+A free web app for learning **904 A1 German words**: the StudyGerman.io A1 list (252 words)
+merged with the official **Goethe-Zertifikat A1 (Start Deutsch 1)** word list, without duplicates. For every word you learn the
 **article**, the **pronunciation**, how to **use it in a sentence**, and how to
 **recognise it when someone says it**.
 
@@ -12,7 +12,7 @@ No accounts, no API keys, no cost. It runs in the browser and works offline once
 | Section | What it does |
 |---|---|
 | **Today** | Your daily plan: reviews due, new words, skill accuracy, topics, and the words you get wrong most. |
-| **Words** | All 252 words, searchable in German or English, filterable by topic and by der/die/das. Tap a word for audio (normal and slow), plural, example sentence, pronunciation tips and a case table (der/den/dem, ein/einen/einem). |
+| **Words** | All 904 words, searchable in German or English, filterable by list (StudyGerman / Goethe), topic, der/die/das, verbs, adjectives and phrases. Tap a word for audio (normal and slow), plural, example sentence, pronunciation tips and a case table (der/den/dem, ein/einen/einem). |
 | **Review** | Spaced repetition (SM-2 style). New words are introduced first, then quizzed. Cards alternate between *English → say the German* and *German audio → what does it mean?*. |
 | **Drills** | Ten-question rounds, weakest words first: |
 | | • **der, die, das**: article trainer with colour coding and gender rules (‑ung → die, ‑chen → das, days → der …) |
@@ -82,7 +82,8 @@ Progress is stored in your browser (`localStorage`). To move it to another devic
 ```
 index.html            app shell
 css/styles.css        styles (light + dark)
-js/data.js            the 252 words: article, plural, English, example sentence, topic
+js/data.js            the 904 words: article, plural, English, example sentences, topic, source list
+tools/build_vocab.py  merges the Goethe list (tools/goethe_*.py) into js/data.js, skipping duplicates
 js/store.js           settings, spaced-repetition scheduler, pronunciation and gender rules
 js/speech.js          Web Speech API wrapper (TTS + recognition)
 js/app.js             views and drills
@@ -102,4 +103,15 @@ sw.js, manifest.webmanifest, icons/   offline support and install-to-home-screen
 5. **Answer questions**: 5 questions, answered out loud. Every few days, **Tell a story**.
 6. Once the A1 articles are easy, add a round of **Articles in A2 sentences**.
 
-At 10 new words a day you meet all 252 words in under 4 weeks. Reviews keep them in long-term memory.
+At 10 new words a day you meet all 904 words in about 3 months (Settings → *New words come from* lets you do the Goethe exam list first). Reviews keep them in long-term memory.
+
+## The word lists
+
+* **StudyGerman A1** (ids 1–252): the original list with example sentences.
+* **Goethe-Zertifikat A1** (ids 253–904): the Start Deutsch 1 exam word list, with English meanings,
+  plurals and translated example sentences added. Numbers, grau/braun, compass directions and measures
+  come from the list's word groups.
+* **105 words are on both lists.** They appear once. Their card keeps your progress and shows the Goethe
+  example as a second example sentence.
+
+To change the Goethe words, edit `tools/goethe_*.py` and run `python3 tools/build_vocab.py`.

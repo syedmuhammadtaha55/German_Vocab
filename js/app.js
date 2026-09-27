@@ -1,4 +1,4 @@
-// Wortschatz A1: views and drills.
+// Taha's Lehrer: views and drills.
 (function () {
   const V = window.VOCAB;
   const byId = Object.fromEntries(V.map(w => [w.id, w]));

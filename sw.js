@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'wortschatz-v3';
+const VERSION = 'lehrer-v4';
 const FILES = ['./', 'index.html', 'css/styles.css', 'js/data.js', 'js/store.js', 'js/speech.js', 'js/a2.js', 'js/talk-data.js', 'js/checker.js', 'js/app.js', 'js/talk.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

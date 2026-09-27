@@ -86,7 +86,7 @@
       res.issues.length ? h('ul', { class: 'issues' }, res.issues.map(x => h('li', { class: 'lvl-' + x.level },
         h('span', {}, x.msg),
         x.fix != null && x.wrong ? h('span', { class: 'fix' }, `${x.wrong} → ${x.fix || '(remove)'}`) : null,
-        h('span', { class: 'src' }, x.source === 'app' ? 'Wortschatz check' : x.source)))) :
+        h('span', { class: 'src' }, x.source === 'app' ? 'App check' : x.source)))) :
         h('p', { class: 'ok-line' }, res.ltUsed ? 'No mistakes found by the grammar check.' : 'No mistakes found by the offline check.'),
       res.corrected && Lang.norm(res.corrected) !== Lang.norm(text) ? h('div', { class: 'ex' },
         h('span', { class: 'eyebrow' }, 'Corrected'),

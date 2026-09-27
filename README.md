@@ -1,4 +1,4 @@
-# Wortschatz A1
+# Taha's Lehrer
 
 A free web app for learning **904 A1 German words**: the StudyGerman.io A1 list (252 words)
 merged with the official **Goethe-Zertifikat A1 (Start Deutsch 1)** word list, without duplicates. For every word you learn the

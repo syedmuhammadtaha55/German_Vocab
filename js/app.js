@@ -840,6 +840,6 @@
   go(['home', 'words', 'review', 'drills'].includes(start) ? start : 'home');
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(() => {});
   }
 })();

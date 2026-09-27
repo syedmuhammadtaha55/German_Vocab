@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when files change.
-const VERSION = 'lehrer-v4';
+const VERSION = 'lehrer-v5';
 const FILES = ['./', 'index.html', 'css/styles.css', 'js/data.js', 'js/store.js', 'js/speech.js', 'js/a2.js', 'js/talk-data.js', 'js/checker.js', 'js/app.js', 'js/talk.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -12,7 +12,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).then(res => {
+    // no-cache: always ask the server whether the file changed (cheap 304 if not),
+    // so updates show on the next load instead of after the browser's HTTP cache expires.
+    fetch(e.request, { cache: 'no-cache' }).then(res => {
       if (res.ok && new URL(e.request.url).origin === location.origin) {
         const copy = res.clone();
         caches.open(VERSION).then(c => c.put(e.request, copy));
